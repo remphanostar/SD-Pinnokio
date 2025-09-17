@@ -111,7 +111,29 @@ class EnvironmentSetup:
             else:
                 print("⚠️ Some requirements failed to install")
         else:
-            print("ℹ️ No requirements.txt found, skipping package installation")
+            print("ℹ️ No repository requirements.txt found, installing core dependencies...")
+            
+            # Install core dependencies required for SD-Pinnokio interface
+            core_deps = [
+                "ipywidgets>=7.7.0",
+                "requests>=2.28.0", 
+                "qrcode>=7.3.1",
+                "Pillow>=9.0.0"
+            ]
+            
+            for dep in core_deps:
+                print(f"📦 Installing {dep}...")
+                pip_result = subprocess.run(
+                    [sys.executable, "-m", "pip", "install", dep],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True
+                )
+                if pip_result.returncode == 0:
+                    print(f"✅ {dep} installed successfully!")
+                else:
+                    print(f"⚠️ Failed to install {dep}")
+                    print(pip_result.stdout[-200:] if len(pip_result.stdout) > 200 else pip_result.stdout)
         
         self.setup_complete = True
         return True
@@ -122,15 +144,64 @@ class EnvironmentSetup:
             return False
             
         try:
-            # Try to import key modules
+            # First check for core dependencies
+            import qrcode
+            import requests
+            import ipywidgets
+            print("✅ Core dependencies imported successfully!")
+            
+            # Try to import key SD-Pinnokio modules
             from environment_management.shell_runner import ShellRunner
             from engine.installer import ApplicationInstaller
             from tunneling.cloudflare_manager import CloudflareManager
-            print("✅ All modules imported successfully!")
+            print("✅ SD-Pinnokio modules imported successfully!")
+            
+            # Test qrcode functionality
+            qr = qrcode.QRCode()
+            qr.add_data("test")
+            qr.make(fit=True)
+            print("✅ QR code functionality verified!")
+            
             return True
         except ImportError as e:
             print(f"❌ Import failed: {e}")
-            return False
+            print("🔧 Attempting to install missing dependencies...")
+            
+            # Try to install missing packages
+            missing_packages = []
+            if "qrcode" in str(e):
+                missing_packages.append("qrcode>=7.3.1")
+            if "requests" in str(e):
+                missing_packages.append("requests>=2.28.0")
+            if "ipywidgets" in str(e):
+                missing_packages.append("ipywidgets>=7.7.0")
+                
+            for package in missing_packages:
+                print(f"📦 Installing {package}...")
+                pip_result = subprocess.run(
+                    [sys.executable, "-m", "pip", "install", package],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True
+                )
+                if pip_result.returncode == 0:
+                    print(f"✅ {package} installed successfully!")
+                else:
+                    print(f"⚠️ Failed to install {package}")
+                    
+            # Try imports again
+            try:
+                import qrcode
+                import requests
+                import ipywidgets
+                from environment_management.shell_runner import ShellRunner
+                from engine.installer import ApplicationInstaller
+                from tunneling.cloudflare_manager import CloudflareManager
+                print("✅ All modules imported successfully after dependency installation!")
+                return True
+            except ImportError as e2:
+                print(f"❌ Import still failed after installing dependencies: {e2}")
+                return False
 
 # ╔═══════════════════════════════════════════════════════════════════════════════╗
 # ║                           APPS DATABASE LOADER                               ║
